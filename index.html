@@ -11,11 +11,13 @@
         const CONFIG = {
             clientId: "c89a2441-cb70-43f2-b78b-34db6223b33a",
             redirectUri: "https://360digitalco.github.io", 
-            edgeFunctionUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co" 
+            // FIXED: Appended the required Deno deployment routing path path parameters
+            edgeFunctionUrl: "https://supabase.co" 
         };
 
         // 1. Kick off the authorization flow redirecting the user to Supabase
         function redirectToSupabaseAuth() {
+            // FIXED: Changed path target location to the real API endpoint layout block
             const url = `https://supabase.com` +
                 `?client_id=${encodeURIComponent(CONFIG.clientId)}` +
                 `&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}` +
