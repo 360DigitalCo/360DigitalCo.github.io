@@ -4,113 +4,415 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>360Digital, Co. | Partner Portal</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <script>
-        // PRODUCTION CONFIGURATION
         const CONFIG = {
             clientId: "c89a2441-cb70-43f2-b78b-34db6223b33a",
-            redirectUri: "https://360digitalco.github.io", 
-            edgeFunctionUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/oauth-exchange" 
+            redirectUri: "https://360digitalco.github.io",
+            edgeFunctionUrl:
+                "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/oauth-exchange"
         };
 
-        // 1. Kick off the authorization flow redirecting the user to Supabase
-        function redirectToSupabaseAuth() {
-            // FIXED THE LINE BELOW: Swapped out the homepage domain for the real API endpoint
-            const url = `https://api.supabase.com` +
-                `?client_id=${encodeURIComponent(CONFIG.clientId)}` +
-                `&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}` +
-                `&response_type=code` +
-                `&scope=all`;
-            window.location.href = url;
+        async function sha256(text) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+            const hash = await crypto.subtle.digest("SHA-256", data);
+            return new Uint8Array(hash);
         }
 
-        // 2. Lifecycle Watcher: Catch incoming code params, trade them, and clean up the address bar
-        window.addEventListener('DOMContentLoaded', async () => {
+        function base64url(bytes) {
+            let binary = "";
+
+            for (const b of bytes)
+                binary += String.fromCharCode(b);
+
+            return btoa(binary)
+                .replace(/\+/g, "-")
+                .replace(/\//g, "_")
+                .replace(/=+$/, "");
+        }
+
+        function randomString(length = 64) {
+            const chars =
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+            const array = new Uint8Array(length);
+
+            crypto.getRandomValues(array);
+
+            return [...array]
+                .map(v => chars[v % chars.length])
+                .join("");
+        }
+
+        async function redirectToSupabaseAuth() {
+
+            const state = crypto.randomUUID();
+
+            const codeVerifier = randomString(96);
+
+            const challengeBytes = await sha256(codeVerifier);
+
+            const codeChallenge = base64url(challengeBytes);
+
+            sessionStorage.setItem(
+                "oauth_state",
+                state
+            );
+
+            sessionStorage.setItem(
+                "code_verifier",
+                codeVerifier
+            );
+
+            const params = new URLSearchParams({
+                client_id: CONFIG.clientId,
+                redirect_uri: CONFIG.redirectUri,
+                response_type: "code",
+                state: state,
+                code_challenge: codeChallenge,
+                code_challenge_method: "S256"
+            });
+
+            window.location.href =
+                `https://api.supabase.com/v1/oauth/authorize?${params.toString()}`;
+        }
+
+        async function processOAuthCallback() {
+
             const params = new URLSearchParams(window.location.search);
-            const returnedCode = params.get('code');
 
-            if (returnedCode) {
-                // Instantly update UI states to show processing progress
-                document.getElementById('display-status').innerText = "Processing Partner Credentials...";
-                document.getElementById('display-desc').innerText = "Communicating securely with Supabase Edge Core...";
-                
-                try {
-                    // Safe handoff to your air-gapped Edge Function layer
-                    const response = await fetch(CONFIG.edgeFunctionUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            code: returnedCode,
-                            redirectUri: CONFIG.redirectUri
-                        })
-                    });
+            const code = params.get("code");
 
-                    const jsonPayload = await response.json();
+            if (!code)
+                return;
 
-                    if (response.ok) {
-                        document.getElementById('display-status').innerText = "Integration Complete!";
-                        document.getElementById('display-desc').innerText = "360Digital, Co. has successfully synced with your Supabase workspace.";
-                        
-                        // Clean up the URL string so the user doesn't see the ugly raw code block
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        
-                        console.log("Successfully connected. Access Token Payload:", jsonPayload);
-                    } else {
-                        document.getElementById('display-status').innerText = "Handshake Rejected.";
-                        document.getElementById('display-desc').innerText = `Error: ${jsonPayload.error || 'Check browser dev console.'}`;
-                        console.error("Vault Response Error:", jsonPayload);
-                    }
-                } catch (err) {
-                    document.getElementById('display-status').innerText = "Network Exception.";
-                    document.getElementById('display-desc').innerText = "Could not bridge request connection to the Edge Function.";
-                    console.error("Network Link Exception:", err);
-                }
+            const state = params.get("state");
+
+            const storedState =
+                sessionStorage.getItem("oauth_state");
+
+            if (state !== storedState) {
+
+                document.getElementById("display-status").innerText =
+                    "Security Check Failed";
+
+                document.getElementById("display-desc").innerText =
+                    "OAuth state validation failed.";
+
+                return;
             }
-        });
+
+            const verifier =
+                sessionStorage.getItem("code_verifier");
+
+            if (!verifier) {
+
+                document.getElementById("display-status").innerText =
+                    "Missing PKCE";
+
+                document.getElementById("display-desc").innerText =
+                    "Code verifier missing.";
+
+                return;
+            }
+
+            document.getElementById("display-status").innerText =
+                "Connecting Workspace...";
+
+            document.getElementById("display-desc").innerText =
+                "Waiting for secure token exchange...";
+
+            try {
+
+                const response = await fetch(
+                    CONFIG.edgeFunctionUrl,
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+
+                            code,
+
+                            redirectUri:
+                                CONFIG.redirectUri,
+
+                            codeVerifier:
+                                verifier
+
+                        })
+                    }
+                );
+
+                const data =
+                    await response.json();
+
+                if (!response.ok)
+                    throw new Error(
+                        data.error ||
+                        "Unknown error"
+                    );
+
+                sessionStorage.removeItem(
+                    "oauth_state"
+                );
+
+                sessionStorage.removeItem(
+                    "code_verifier"
+                );
+
+                history.replaceState(
+                    {},
+                    document.title,
+                    window.location.pathname
+                );
+
+                document.getElementById(
+                    "display-status"
+                ).innerText =
+                    "Workspace Connected";
+
+                document.getElementById(
+                    "display-desc"
+                ).innerText =
+                    "Your Supabase organization has been connected successfully.";
+
+                console.log(
+                    "OAuth Success",
+                    data
+                );
+
+            } catch (error) {
+
+                console.error(error);
+
+                document.getElementById(
+                    "display-status"
+                ).innerText =
+                    "Connection Failed";
+
+                document.getElementById(
+                    "display-desc"
+                ).innerText =
+                    error.message;
+            }
+
+        }
+
+        window.addEventListener(
+            "DOMContentLoaded",
+            processOAuthCallback
+        );
     </script>
 </head>
+
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
 
-    <!-- Header Navbar -->
-    <header class="border-b border-slate-800 bg-slate-950 px-6 py-4 flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-            <div class="bg-blue-600 text-white font-black px-3 py-1.5 rounded-lg text-lg tracking-wider">360D</div>
-            <span class="text-xl font-bold tracking-tight text-white">360Digital, Co.</span>
-        </div>
-        <span class="text-xs font-mono px-3 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded">
-            GitHub Pages Live Production Pipeline
-        </span>
-    </header>
+<header class="border-b border-slate-800 bg-slate-950 px-6 py-4 flex justify-between items-center">
 
-    <!-- Main Workspace -->
-    <main class="flex-grow flex items-center justify-center p-6">
-        <div class="max-w-md w-full bg-slate-950 border border-slate-800 rounded-2xl p-8 shadow-2xl text-center">
-            
-            <!-- Integration Badges -->
-            <div class="flex justify-center items-center space-x-3 mb-6">
-                <span class="bg-blue-950 text-blue-400 text-xs font-semibold px-2.5 py-1 rounded-full border border-blue-800">360Digital</span>
-                <span class="text-slate-600 text-sm font-bold">×</span>
-                <span class="bg-emerald-950 text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-800">Supabase Partner</span>
-            </div>
+<div class="flex items-center space-x-3">
 
-            <h1 id="display-status" class="text-2xl font-bold mb-2">Connect Your Workspace</h1>
-            <p id="display-desc" class="text-slate-400 text-sm mb-8">Link your account to authorize marketplace synchronization via secure Edge pipelines.</p>
+<div class="bg-blue-600 text-white font-black px-3 py-1.5 rounded-lg text-lg tracking-wider">
 
-            <!-- OAUTH ACTION CONTROL BUTTON -->
-            <button onclick="redirectToSupabaseAuth()" class="w-full bg-[#1e293b] hover:bg-[#334155] text-white font-medium py-3 px-4 rounded-xl border border-slate-700 transition duration-200 active:scale-[0.98] flex items-center justify-center cursor-pointer group">
-                <svg class="w-5 h-5 mr-3 text-[#3ecf8e] group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M21.362 9.354H13.62V1.9a1.218 1.218 0 0 0-2.072-.868l-8.91 8.91a1.217 1.217 0 0 0 .86 2.076h7.743v7.454a1.218 1.218 0 0 0 2.072.868l8.91-8.91a1.217 1.217 0 0 0-.86-2.076z"/>
-                </svg>
-                Sign in with Supabase
-            </button>
-        </div>
-    </main>
+360D
 
-    <!-- Footer -->
-    <footer class="p-4 text-center text-xs text-slate-600 border-t border-slate-950 bg-slate-950/30">
-        &copy; 2026 360Digital, Co. All rights reserved.
-    </footer>
+</div>
+
+<span class="text-xl font-bold tracking-tight">
+
+360Digital, Co.
+
+</span>
+
+</div>
+
+<span class="text-xs font-mono px-3 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+
+GitHub Pages Production
+
+</span>
+
+</header>
+
+<main class="flex-grow flex items-center justify-center p-6">
+
+<div class="max-w-md w-full bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl p-8 text-center">
+
+<div class="flex justify-center items-center gap-3 mb-6">
+
+<span class="bg-blue-950 border border-blue-800 px-3 py-1 rounded-full text-xs text-blue-400">
+
+360Digital
+
+</span>
+
+<span class="text-slate-600 font-bold">
+
+×
+
+</span>
+
+<span class="bg-emerald-950 border border-emerald-800 px-3 py-1 rounded-full text-xs text-emerald-400">
+
+Supabase Partner
+
+</span>
+
+</div>
+
+<h1
+id="display-status"
+class="text-2xl font-bold mb-2"
+>
+
+Connect Your Workspace
+
+</h1>
+
+<p
+id="display-desc"
+class="text-slate-400 text-sm mb-8"
+>
+
+Authorize your Supabase account to let
+360Digital securely manage your projects
+using the Management API.
+
+</p>
+
+<button
+onclick="redirectToSupabaseAuth()"
+class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 px-4 flex items-center justify-center transition active:scale-95"
+>
+
+<svg
+class="w-5 h-5 text-emerald-400 mr-3"
+viewBox="0 0 24 24"
+fill="currentColor"
+>
+
+<path d="M21.362 9.354H13.62V1.9a1.218 1.218 0 0 0-2.072-.868l-8.91 8.91a1.217 1.217 0 0 0 .86 2.076h7.743v7.454a1.218 1.218 0 0 0 2.072.868l8.91-8.91a1.217 1.217 0 0 0-.86-2.076z"/>
+
+</svg>
+
+Connect Supabase
+
+</button>
+
+<div class="mt-8 border-t border-slate-800 pt-6 text-left">
+
+<div class="text-xs uppercase tracking-wider text-slate-500 mb-2">
+    System Status
+</div>
+
+<div class="space-y-3">
+
+<div class="flex items-center justify-between text-sm">
+
+<span class="text-slate-400">
+
+OAuth Endpoint
+
+</span>
+
+<span
+class="text-emerald-400 font-mono text-xs"
+>
+
+Ready
+
+</span>
+
+</div>
+
+<div class="flex items-center justify-between text-sm">
+
+<span class="text-slate-400">
+
+PKCE
+
+</span>
+
+<span
+class="text-emerald-400 font-mono text-xs"
+>
+
+Enabled
+
+</span>
+
+</div>
+
+<div class="flex items-center justify-between text-sm">
+
+<span class="text-slate-400">
+
+State Validation
+
+</span>
+
+<span
+class="text-emerald-400 font-mono text-xs"
+>
+
+Enabled
+
+</span>
+
+</div>
+
+<div class="flex items-center justify-between text-sm">
+
+<span class="text-slate-400">
+
+Edge Function
+
+</span>
+
+<span
+class="text-emerald-400 font-mono text-xs"
+id="edge-status"
+>
+
+Configured
+
+</span>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</main>
+
+<footer
+class="border-t border-slate-800 py-5 text-center text-xs text-slate-500 bg-slate-950"
+>
+
+<div>
+
+© 2026 360Digital, Co.
+
+</div>
+
+<div class="mt-2">
+
+Powered by Supabase Management OAuth
+
+</div>
+
+</footer>
 
 </body>
+
 </html>
