@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>360Digital, Co. | Partner Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        // PRODUCTION CONFIGURATION
+        const CONFIG = {
+            clientId: "c89a2441-cb70-43f2-b78b-34db6223b33a",
+            redirectUri: "https://360digitalco.github.io", 
+            edgeFunctionUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co" 
+        };
+
+        // 1. Kick off the authorization flow redirecting the user to Supabase
+        function redirectToSupabaseAuth() {
+            const url = `https://supabase.com` +
+                `?client_id=${encodeURIComponent(CONFIG.clientId)}` +
+                `&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}` +
+                `&response_type=code` +
+                `&scope=all`;
+            window.location.href = url;
+        }
+
+        // 2. Lifecycle Watcher: Catch incoming code params, trade them, and clean up the address bar
+        window.addEventListener('DOMContentLoaded', async () => {
+            const params = new URLSearchParams(window.location.search);
+            const returnedCode = params.get('code');
+
+            if (returnedCode) {
+                // Instantly update UI states to show processing progress
+                document.getElementById('display-status').innerText = "Processing Partner Credentials...";
+                document.getElementById('display-desc').innerText = "Communicating securely with Supabase Edge Core...";
+                
+                try {
+                    // Safe handoff to your air-gapped Edge Function layer
+                    const response = await fetch(CONFIG.edgeFunctionUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            code: returnedCode,
+                            redirectUri: CONFIG.redirectUri
+                        })
+                    });
+
+                    const jsonPayload = await response.json();
+
+                    if (response.ok) {
+                        document.getElementById('display-status').innerText = "Integration Complete!";
+                        document.getElementById('display-desc').innerText = "360Digital, Co. has successfully synced with your Supabase workspace.";
+                        
+                        // Clean up the URL string so the user doesn't see the ugly raw code block
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        
+                        console.log("Successfully connected. Access Token Payload:", jsonPayload);
+                    } else {
+                        document.getElementById('display-status').innerText = "Handshake Rejected.";
+                        document.getElementById('display-desc').innerText = `Error: ${jsonPayload.error || 'Check browser dev console.'}`;
+                        console.error("Vault Response Error:", jsonPayload);
+                    }
+                } catch (err) {
+                    document.getElementById('display-status').innerText = "Network Exception.";
+                    document.getElementById('display-desc').innerText = "Could not bridge request connection to the Edge Function.";
+                    console.error("Network Link Exception:", err);
+                }
+            }
+        });
+    </script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
+
+    <!-- Header Navbar -->
+    <header class="border-b border-slate-800 bg-slate-950 px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 text-white font-black px-3 py-1.5 rounded-lg text-lg tracking-wider">360D</div>
+            <span class="text-xl font-bold tracking-tight text-white">360Digital, Co.</span>
+        </div>
+        <span class="text-xs font-mono px-3 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded">
+            GitHub Pages Live Production Pipeline
+        </span>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-grow flex items-center justify-center p-6">
+        <div class="max-w-md w-full bg-slate-950 border border-slate-800 rounded-2xl p-8 shadow-2xl text-center">
+            
+            <!-- Integration Badges -->
+            <div class="flex justify-center items-center space-x-3 mb-6">
+                <span class="bg-blue-950 text-blue-400 text-xs font-semibold px-2.5 py-1 rounded-full border border-blue-800">360Digital</span>
+                <span class="text-slate-600 text-sm font-bold">×</span>
+                <span class="bg-emerald-950 text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-800">Supabase Partner</span>
+            </div>
+
+            <h1 id="display-status" class="text-2xl font-bold mb-2">Connect Your Workspace</h1>
+            <p id="display-desc" class="text-slate-400 text-sm mb-8">Link your account to authorize marketplace synchronization via secure Edge pipelines.</p>
+
+            <!-- OAUTH ACTION CONTROL BUTTON -->
+            <button onclick="redirectToSupabaseAuth()" class="w-full bg-[#1e293b] hover:bg-[#334155] text-white font-medium py-3 px-4 rounded-xl border border-slate-700 transition duration-200 active:scale-[0.98] flex items-center justify-center cursor-pointer group">
+                <svg class="w-5 h-5 mr-3 text-[#3ecf8e] group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M21.362 9.354H13.62V1.9a1.218 1.218 0 0 0-2.072-.868l-8.91 8.91a1.217 1.217 0 0 0 .86 2.076h7.743v7.454a1.218 1.218 0 0 0 2.072.868l8.91-8.91a1.217 1.217 0 0 0-.86-2.076z"/>
+                </svg>
+                Sign in with Supabase
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="p-4 text-center text-xs text-slate-600 border-t border-slate-950 bg-slate-950/30">
+        &copy; 2026 360Digital, Co. All rights reserved.
+    </footer>
+
+</body>
+</html>
