@@ -17,7 +17,7 @@
         // 1. Kick off the authorization flow redirecting the user to Supabase
         function redirectToSupabaseAuth() {
             // FIXED THE LINE BELOW: Swapped out the homepage domain for the real API endpoint
-            const url = `https://supabase.com` +
+            const url = `https://api.supabase.com` +
                 `?client_id=${encodeURIComponent(CONFIG.clientId)}` +
                 `&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}` +
                 `&response_type=code` +
