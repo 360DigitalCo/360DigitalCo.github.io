@@ -6,33 +6,42 @@
 <title>360Digital, Co. | Connect Supabase</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script type="module">
-  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
   // ---------------------------------------------------------------------
   // CONFIG
   // ---------------------------------------------------------------------
   const CONFIG = {
-    // 360's own Supabase project — used for 360 account sign-in.
-    supabaseUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co",
-    supabaseAnonKey: "sb_publishable_thiEv1nfaZ1ng1Wd1IG5Vw_r68ix0B9",
+    // From Supabase org settings > OAuth Apps > (your app) after you register it.
+    mgmtClientId: "PARTNER_OAUTH_CLIENT_ID",
 
-    // The OAuth App registered under Supabase org settings > OAuth Apps.
-    // Placeholder until the real client_id is available — replace before going live.
-    mgmtClientId: "0f1f4cfd-2b52-47b6-92d0-781524f2bd34",
-
-    // Must exactly match a redirect URI registered on that OAuth App (no wildcards).
+    // Must exactly match the Authorization Callback URL registered on that app.
+    // Because this file lives at the repo root, GitHub Pages serves it at the
+    // bare domain below — keep it there, don't move it into a subfolder.
     redirectUri: "https://360digitalco.github.io",
 
-    // Our own edge functions do the server-side token exchange —
-    // the client_secret never touches this page.
-    exchangeUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/supabase-mgmt-exchange",
-    statusUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/supabase-mgmt-status",
-    disconnectUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/supabase-mgmt-disconnect",
-
-    scopes: "all", // see Supabase docs > "Scopes for your OAuth App" for restricting this
+    // Our edge functions do the server-side token exchange — the client_secret
+    // never touches this page.
+    exchangeUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/partner-mgmt-exchange",
+    statusUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/partner-mgmt-status",
+    disconnectUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/partner-mgmt-disconnect",
   };
 
-  const supabase = createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey);
+  // ---------------------------------------------------------------------
+  // Identity: this page has no login of its own. Each browser gets a random
+  // secret on first visit, stored in localStorage, which the edge functions
+  // use (hashed) to look up that visitor's connection. Anyone holding this
+  // value can view/manage that one connection — treat it like a session key.
+  // ---------------------------------------------------------------------
+  function getOrCreateOwnerKey() {
+    let key = localStorage.getItem("partner_owner_key");
+    if (!key) {
+      const bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      key = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+      localStorage.setItem("partner_owner_key", key);
+    }
+    return key;
+  }
+  const ownerKey = getOrCreateOwnerKey();
 
   // ---------------------------------------------------------------------
   // PKCE helpers
@@ -59,35 +68,17 @@
   const els = {
     status: document.getElementById("display-status"),
     desc: document.getElementById("display-desc"),
-    signinBtn: document.getElementById("signin-btn"),
     connectBtn: document.getElementById("connect-btn"),
     disconnectBtn: document.getElementById("disconnect-btn"),
     connectionCard: document.getElementById("connection-card"),
   };
-
   function setStatus(title, desc) {
     els.status.textContent = title;
     els.desc.textContent = desc;
   }
 
-  async function getAccessToken() {
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ?? null;
-  }
-
   // ---------------------------------------------------------------------
-  // Step 1: sign in to 360 (needed so we know whose account to attach the
-  // Supabase Management grant to)
-  // ---------------------------------------------------------------------
-  els.signinBtn.addEventListener("click", async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "github",
-      options: { redirectTo: window.location.origin + window.location.pathname },
-    });
-  });
-
-  // ---------------------------------------------------------------------
-  // Step 2: kick off the Supabase Management OAuth flow
+  // Step 1: kick off the Supabase Management OAuth flow
   // ---------------------------------------------------------------------
   async function startManagementConnect() {
     const state = crypto.randomUUID();
@@ -111,7 +102,7 @@
   els.connectBtn.addEventListener("click", startManagementConnect);
 
   // ---------------------------------------------------------------------
-  // Step 3: handle the redirect back from Supabase with ?code&state
+  // Step 2: handle the redirect back from Supabase with ?code&state
   // ---------------------------------------------------------------------
   async function processOAuthCallback() {
     const params = new URLSearchParams(window.location.search);
@@ -134,23 +125,18 @@
     }
 
     const verifier = sessionStorage.getItem("mgmt_code_verifier");
-    const accessToken = await getAccessToken();
-    if (!accessToken) {
-      setStatus("Sign in required", "Sign in to your 360 account first, then reconnect Supabase.");
-      history.replaceState({}, document.title, window.location.pathname);
-      return true;
-    }
-
     setStatus("Connecting workspace…", "Exchanging your authorization for an access token.");
 
     try {
       const res = await fetch(CONFIG.exchangeUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ code, redirect_uri: CONFIG.redirectUri, code_verifier: verifier }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          redirect_uri: CONFIG.redirectUri,
+          code_verifier: verifier,
+          owner_key: ownerKey,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Unknown error");
@@ -170,18 +156,10 @@
   // Refresh the on-screen connection status
   // ---------------------------------------------------------------------
   async function refreshConnectionStatus() {
-    const accessToken = await getAccessToken();
-    if (!accessToken) {
-      els.signinBtn.classList.remove("hidden");
-      els.connectBtn.classList.add("hidden");
-      els.connectionCard.classList.add("hidden");
-      return;
-    }
-    els.signinBtn.classList.add("hidden");
-    els.connectBtn.classList.remove("hidden");
-
     const res = await fetch(CONFIG.statusUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ owner_key: ownerKey }),
     });
     const data = await res.json().catch(() => ({ connected: false }));
 
@@ -190,16 +168,16 @@
       els.connectionCard.classList.remove("hidden");
       document.getElementById("connection-expires").textContent = new Date(data.expires_at).toLocaleString();
     } else {
+      els.connectBtn.classList.remove("hidden");
       els.connectionCard.classList.add("hidden");
     }
   }
 
   els.disconnectBtn.addEventListener("click", async () => {
-    const accessToken = await getAccessToken();
-    if (!accessToken) return;
     await fetch(CONFIG.disconnectUrl, {
       method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ owner_key: ownerKey }),
     });
     await refreshConnectionStatus();
     setStatus("Disconnected", "360Digital no longer has access to your Supabase organization.");
@@ -212,12 +190,7 @@
     const handledCallback = await processOAuthCallback();
     await refreshConnectionStatus();
     if (!handledCallback) {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        setStatus("Connect your workspace", "Authorize 360Digital to manage your Supabase projects.");
-      } else {
-        setStatus("Sign in required", "Sign in to your 360 account to connect Supabase.");
-      }
+      setStatus("Connect your workspace", "Authorize 360Digital to manage your Supabase projects.");
     }
   });
 </script>
@@ -245,10 +218,6 @@
 
     <h1 id="display-status" class="text-2xl font-bold mb-2">Loading…</h1>
     <p id="display-desc" class="text-slate-400 text-sm mb-8"></p>
-
-    <button id="signin-btn" class="hidden w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 px-4 transition active:scale-95 mb-3">
-      Sign in to 360
-    </button>
 
     <button id="connect-btn" class="hidden w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 px-4 flex items-center justify-center transition active:scale-95">
       <svg class="w-5 h-5 text-emerald-400 mr-3" viewBox="0 0 24 24" fill="currentColor">
