@@ -3,34 +3,138 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>360Digital, Co. | Connect Supabase</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<title>360 × Supabase — Connect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blueprint: #0f2742;
+    --blueprint-line: #2c4d70;
+    --blueprint-grid: rgba(143, 211, 232, 0.06);
+    --ink: #cfe8f2;
+    --ink-dim: #7fa3bd;
+    --cyan: #8fd3e8;
+    --amber: #e8a33d;
+    --paper: #f4f1ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--blueprint);
+    background-image:
+      linear-gradient(var(--blueprint-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--blueprint-grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  header {
+    border-bottom: 1px solid var(--blueprint-line);
+    padding: 20px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .wordmark { display: flex; align-items: center; gap: 10px; }
+  .wordmark svg { width: 28px; height: 28px; }
+  .wordmark span { font-weight: 700; font-size: 18px; letter-spacing: 0.02em; }
+  .env-tag {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    border: 1px solid var(--blueprint-line);
+    padding: 4px 10px;
+    border-radius: 3px;
+  }
+  main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+  .panel { width: 100%; max-width: 480px; }
+
+  .schematic { width: 100%; margin-bottom: 28px; }
+  .node-label { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; fill: var(--ink-dim); }
+  .node-title { font-size: 15px; font-weight: 600; fill: var(--ink); font-family: 'Space Grotesk', sans-serif; }
+  .pipe { stroke: var(--blueprint-line); stroke-width: 1.5; fill: none; }
+  .pipe.live { stroke: var(--cyan); stroke-dasharray: 4 5; animation: flow 1.2s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -18; } }
+  .node-box { fill: rgba(143,211,232,0.03); stroke: var(--blueprint-line); stroke-width: 1; }
+  .node-box.live { stroke: var(--cyan); }
+
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
+  p.desc { color: var(--ink-dim); font-size: 14px; line-height: 1.5; margin: 0 0 28px; }
+
+  button.primary {
+    width: 100%;
+    background: var(--cyan);
+    color: var(--blueprint);
+    border: none;
+    border-radius: 6px;
+    padding: 14px 18px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: transform 0.12s ease, background 0.12s ease;
+  }
+  button.primary:hover { background: #a7dfef; }
+  button.primary:active { transform: scale(0.98); }
+
+  .connection-card {
+    border: 1px solid var(--blueprint-line);
+    background: rgba(232, 163, 61, 0.06);
+    border-radius: 6px;
+    padding: 16px 18px;
+    text-align: left;
+  }
+  .connection-card .label { color: var(--amber); font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .connection-card .meta { color: var(--ink-dim); font-size: 12px; }
+  .connection-card button.text-btn {
+    background: none;
+    border: none;
+    color: #e88a8a;
+    font-size: 12px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 10px;
+  }
+
+  .specs { margin-top: 32px; border-top: 1px solid var(--blueprint-line); padding-top: 20px; }
+  .specs .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 10px; }
+  .spec-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; }
+  .spec-row .k { color: var(--ink-dim); }
+  .spec-row .v { color: var(--cyan); }
+
+  .hidden { display: none !important; }
+
+  footer {
+    border-top: 1px solid var(--blueprint-line);
+    padding: 18px;
+    text-align: center;
+    color: var(--ink-dim);
+    font-size: 11px;
+  }
+</style>
 <script type="module">
   // ---------------------------------------------------------------------
   // CONFIG
   // ---------------------------------------------------------------------
   const CONFIG = {
-    // From Supabase org settings > OAuth Apps > (your app) after you register it.
-    mgmtClientId: "PARTNER_OAUTH_CLIENT_ID",
-
-    // Must exactly match the Authorization Callback URL registered on that app.
-    // Because this file lives at the repo root, GitHub Pages serves it at the
-    // bare domain below — keep it there, don't move it into a subfolder.
+    mgmtClientId: "c89a2441-cb70-43f2-b78b-34db6223b33a",
     redirectUri: "https://360digitalco.github.io",
-
-    // Our edge functions do the server-side token exchange — the client_secret
-    // never touches this page.
     exchangeUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/partner-mgmt-exchange",
     statusUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/partner-mgmt-status",
     disconnectUrl: "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/partner-mgmt-disconnect",
   };
 
-  // ---------------------------------------------------------------------
-  // Identity: this page has no login of its own. Each browser gets a random
-  // secret on first visit, stored in localStorage, which the edge functions
-  // use (hashed) to look up that visitor's connection. Anyone holding this
-  // value can view/manage that one connection — treat it like a session key.
-  // ---------------------------------------------------------------------
   function getOrCreateOwnerKey() {
     let key = localStorage.getItem("partner_owner_key");
     if (!key) {
@@ -43,9 +147,6 @@
   }
   const ownerKey = getOrCreateOwnerKey();
 
-  // ---------------------------------------------------------------------
-  // PKCE helpers
-  // ---------------------------------------------------------------------
   async function sha256(text) {
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
     return new Uint8Array(digest);
@@ -62,32 +163,35 @@
     return [...arr].map((v) => chars[v % chars.length]).join("");
   }
 
-  // ---------------------------------------------------------------------
-  // UI state
-  // ---------------------------------------------------------------------
-  const els = {
-    status: document.getElementById("display-status"),
-    desc: document.getElementById("display-desc"),
-    connectBtn: document.getElementById("connect-btn"),
-    disconnectBtn: document.getElementById("disconnect-btn"),
-    connectionCard: document.getElementById("connection-card"),
-  };
+  const els = {};
+  window.addEventListener("DOMContentLoaded", () => {
+    els.status = document.getElementById("display-status");
+    els.desc = document.getElementById("display-desc");
+    els.connectBtn = document.getElementById("connect-btn");
+    els.disconnectBtn = document.getElementById("disconnect-btn");
+    els.connectionCard = document.getElementById("connection-card");
+    els.pipe = document.getElementById("pipe-line");
+    els.nodeSupabase = document.getElementById("node-supabase");
+    els.connectBtn.addEventListener("click", startManagementConnect);
+    els.disconnectBtn.addEventListener("click", handleDisconnect);
+    boot();
+  });
+
   function setStatus(title, desc) {
     els.status.textContent = title;
     els.desc.textContent = desc;
   }
+  function setLive(isLive) {
+    els.pipe.classList.toggle("live", isLive);
+    els.nodeSupabase.classList.toggle("live", isLive);
+  }
 
-  // ---------------------------------------------------------------------
-  // Step 1: kick off the Supabase Management OAuth flow
-  // ---------------------------------------------------------------------
   async function startManagementConnect() {
     const state = crypto.randomUUID();
     const codeVerifier = randomString(96);
     const codeChallenge = base64url(await sha256(codeVerifier));
-
     sessionStorage.setItem("mgmt_oauth_state", state);
     sessionStorage.setItem("mgmt_code_verifier", codeVerifier);
-
     const params = new URLSearchParams({
       client_id: CONFIG.mgmtClientId,
       redirect_uri: CONFIG.redirectUri,
@@ -96,14 +200,9 @@
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
     });
-
     window.location.href = `https://api.supabase.com/v1/oauth/authorize?${params.toString()}`;
   }
-  els.connectBtn.addEventListener("click", startManagementConnect);
 
-  // ---------------------------------------------------------------------
-  // Step 2: handle the redirect back from Supabase with ?code&state
-  // ---------------------------------------------------------------------
   async function processOAuthCallback() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
@@ -119,42 +218,32 @@
     const state = params.get("state");
     const storedState = sessionStorage.getItem("mgmt_oauth_state");
     if (!state || state !== storedState) {
-      setStatus("Security check failed", "OAuth state did not match. Please try connecting again.");
+      setStatus("Security check failed", "OAuth state did not match. Try connecting again.");
       history.replaceState({}, document.title, window.location.pathname);
       return true;
     }
 
     const verifier = sessionStorage.getItem("mgmt_code_verifier");
-    setStatus("Connecting workspace…", "Exchanging your authorization for an access token.");
+    setStatus("Connecting…", "Exchanging your authorization for an access token.");
 
     try {
       const res = await fetch(CONFIG.exchangeUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code,
-          redirect_uri: CONFIG.redirectUri,
-          code_verifier: verifier,
-          owner_key: ownerKey,
-        }),
+        body: JSON.stringify({ code, redirect_uri: CONFIG.redirectUri, code_verifier: verifier, owner_key: ownerKey }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Unknown error");
-
       sessionStorage.removeItem("mgmt_oauth_state");
       sessionStorage.removeItem("mgmt_code_verifier");
       history.replaceState({}, document.title, window.location.pathname);
-
-      setStatus("Workspace connected", "Your Supabase organization is now connected to 360Digital.");
+      setStatus("Workspace connected", "Your Supabase organization is now wired into 360Digital.");
     } catch (err) {
       setStatus("Connection failed", String(err.message || err));
     }
     return true;
   }
 
-  // ---------------------------------------------------------------------
-  // Refresh the on-screen connection status
-  // ---------------------------------------------------------------------
   async function refreshConnectionStatus() {
     const res = await fetch(CONFIG.statusUrl, {
       method: "POST",
@@ -162,18 +251,19 @@
       body: JSON.stringify({ owner_key: ownerKey }),
     });
     const data = await res.json().catch(() => ({ connected: false }));
-
     if (data.connected) {
       els.connectBtn.classList.add("hidden");
       els.connectionCard.classList.remove("hidden");
       document.getElementById("connection-expires").textContent = new Date(data.expires_at).toLocaleString();
+      setLive(true);
     } else {
       els.connectBtn.classList.remove("hidden");
       els.connectionCard.classList.add("hidden");
+      setLive(false);
     }
   }
 
-  els.disconnectBtn.addEventListener("click", async () => {
+  async function handleDisconnect() {
     await fetch(CONFIG.disconnectUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -181,73 +271,72 @@
     });
     await refreshConnectionStatus();
     setStatus("Disconnected", "360Digital no longer has access to your Supabase organization.");
-  });
+  }
 
-  // ---------------------------------------------------------------------
-  // Boot
-  // ---------------------------------------------------------------------
-  window.addEventListener("DOMContentLoaded", async () => {
+  async function boot() {
     const handledCallback = await processOAuthCallback();
     await refreshConnectionStatus();
     if (!handledCallback) {
       setStatus("Connect your workspace", "Authorize 360Digital to manage your Supabase projects.");
     }
-  });
+  }
 </script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
+<body>
 
-<header class="border-b border-slate-800 bg-slate-950 px-6 py-4 flex justify-between items-center">
-  <div class="flex items-center space-x-3">
-    <div class="bg-blue-600 text-white font-black px-3 py-1.5 rounded-lg text-lg tracking-wider">360D</div>
-    <span class="text-xl font-bold tracking-tight">360Digital, Co.</span>
+<header>
+  <div class="wordmark">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="13" stroke="#8fd3e8" stroke-width="1.5"/>
+      <path d="M16 3 A13 13 0 0 1 29 16" stroke="#e8a33d" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="16" cy="16" r="2.5" fill="#8fd3e8"/>
+    </svg>
+    <span>360<span style="color:var(--ink-dim); font-weight:400;">DIGITAL</span></span>
   </div>
-  <span class="text-xs font-mono px-3 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-    GitHub Pages Production
-  </span>
+  <span class="env-tag mono">gh-pages · prod</span>
 </header>
 
-<main class="flex-grow flex items-center justify-center p-6">
-  <div class="max-w-md w-full bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl p-8 text-center">
+<main>
+  <div class="panel">
 
-    <div class="flex justify-center items-center gap-3 mb-6">
-      <span class="bg-blue-950 border border-blue-800 px-3 py-1 rounded-full text-xs text-blue-400">360Digital</span>
-      <span class="text-slate-600 font-bold">×</span>
-      <span class="bg-emerald-950 border border-emerald-800 px-3 py-1 rounded-full text-xs text-emerald-400">Supabase</span>
-    </div>
+    <svg class="schematic" viewBox="0 0 440 120" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="34" width="120" height="52" rx="4" class="node-box" />
+      <text x="68" y="56" text-anchor="middle" class="node-label mono">ORG</text>
+      <text x="68" y="76" text-anchor="middle" class="node-title">360Digital</text>
 
-    <h1 id="display-status" class="text-2xl font-bold mb-2">Loading…</h1>
-    <p id="display-desc" class="text-slate-400 text-sm mb-8"></p>
+      <path id="pipe-line" class="pipe" d="M 128 60 H 200 Q 220 60 220 40 V 20 Q 220 0 240 0" />
+      <path class="pipe" d="M 128 60 H 312" />
 
-    <button id="connect-btn" class="hidden w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 px-4 flex items-center justify-center transition active:scale-95">
-      <svg class="w-5 h-5 text-emerald-400 mr-3" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M21.362 9.354H13.62V1.9a1.218 1.218 0 0 0-2.072-.868l-8.91 8.91a1.217 1.217 0 0 0 .86 2.076h7.743v7.454a1.218 1.218 0 0 0 2.072.868l8.91-8.91a1.217 1.217 0 0 0-.86-2.076z"/>
-      </svg>
+      <rect id="node-supabase" x="312" y="34" width="120" height="52" rx="4" class="node-box" />
+      <text x="372" y="56" text-anchor="middle" class="node-label mono">API</text>
+      <text x="372" y="76" text-anchor="middle" class="node-title">Supabase</text>
+    </svg>
+
+    <h1 id="display-status">Loading…</h1>
+    <p id="display-desc" class="desc"></p>
+
+    <button id="connect-btn" class="primary hidden">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.362 9.354H13.62V1.9a1.218 1.218 0 0 0-2.072-.868l-8.91 8.91a1.217 1.217 0 0 0 .86 2.076h7.743v7.454a1.218 1.218 0 0 0 2.072.868l8.91-8.91a1.217 1.217 0 0 0-.86-2.076z"/></svg>
       Connect Supabase
     </button>
 
-    <div id="connection-card" class="hidden mt-2 border border-emerald-900 bg-emerald-950/40 rounded-xl p-4 text-left">
-      <div class="text-sm text-emerald-400 font-semibold mb-1">Connected</div>
-      <div class="text-xs text-slate-400">Token refreshes until <span id="connection-expires"></span></div>
-      <button id="disconnect-btn" class="mt-3 text-xs text-red-400 hover:text-red-300 underline">Disconnect</button>
+    <div id="connection-card" class="connection-card hidden">
+      <div class="label mono">● CONNECTED</div>
+      <div class="meta mono">token refreshes until <span id="connection-expires"></span></div>
+      <button id="disconnect-btn" class="text-btn mono">disconnect</button>
     </div>
 
-    <div class="mt-8 border-t border-slate-800 pt-6 text-left">
-      <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">System Status</div>
-      <div class="space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span class="text-slate-400">PKCE</span><span class="text-emerald-400 font-mono text-xs">Enabled</span></div>
-        <div class="flex items-center justify-between"><span class="text-slate-400">State Validation</span><span class="text-emerald-400 font-mono text-xs">Enabled</span></div>
-        <div class="flex items-center justify-between"><span class="text-slate-400">Secret Exposure</span><span class="text-emerald-400 font-mono text-xs">Server-side only</span></div>
-      </div>
+    <div class="specs">
+      <div class="eyebrow mono">system status</div>
+      <div class="spec-row mono"><span class="k">pkce</span><span class="v">enabled</span></div>
+      <div class="spec-row mono"><span class="k">state validation</span><span class="v">enabled</span></div>
+      <div class="spec-row mono"><span class="k">secret exposure</span><span class="v">server-side only</span></div>
     </div>
 
   </div>
 </main>
 
-<footer class="border-t border-slate-800 py-5 text-center text-xs text-slate-500 bg-slate-950">
-  <div>© 2026 360Digital, Co.</div>
-  <div class="mt-2">Powered by Supabase Management OAuth</div>
-</footer>
+<footer class="mono">© 2026 360Digital, Co. — powered by Supabase Management OAuth</footer>
 
 </body>
 </html>
